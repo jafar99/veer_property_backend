@@ -2,11 +2,11 @@ const mongoose = require('mongoose');
 
 const propertySchema = new mongoose.Schema(
   {
-    title: { type: String },
-    description: { type: String },
-    type: { type: String },
-    price: { type: Number },
-    location: { type: String },
+    title: { type: String, required: true },
+    description: { type: String, required: true },
+    type: { type: String, required: true },
+    price: { type: Number, required: true },
+    location: { type: String, required: true },
     amenities: [{ type: String }],
     images: [{ type: String }], // Array of image URLs
   },

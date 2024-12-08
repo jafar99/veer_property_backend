@@ -47,6 +47,7 @@ router.get('/:id', async (req, res) => {
     console.error('Error fetching property:', err);
     res.status(500).send(err.message);
   }
+  
 });
 
 // Add a new property
@@ -55,7 +56,7 @@ router.post('/', upload.array('images', 10), async (req, res) => {
   console.log('Received files:', req.files); // Log incoming files
 
   try {
-    const images = req.files.map((file) => file.path); // Store uploaded file paths
+    const images = req.files.map((file) => `/uploads/${file.filename}`); // Store uploaded file paths
     const propertyData = { ...req.body, images };
     const property = new Property(propertyData);
     await property.save();
@@ -72,7 +73,7 @@ router.put('/:id', upload.array('images', 10), async (req, res) => {
   console.log('Received files for update:', req.files); // Log incoming files
 
   try {
-    const images = req.files.map((file) => file.path); // Update with uploaded file paths
+    const images = req.files.map((file) => `/uploads/${file.filename}`); // Update with uploaded file paths
     const updatedData = { ...req.body, images };
     const property = await Property.findByIdAndUpdate(req.params.id, updatedData, { new: true });
     if (!property) {

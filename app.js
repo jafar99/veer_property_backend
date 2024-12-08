@@ -7,8 +7,8 @@ const path = require('path');
 const app = express();
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.use(cors()); // Enable CORS for front-end requests
+app.use(express.json()); // To parse JSON request bodies
 
 // Routes
 app.use('/api/properties', propertyRoutes);
@@ -24,6 +24,7 @@ mongoose.connect('mongodb://localhost/real-estate', {
   .then(() => console.log('Connected to MongoDB'))
   .catch((error) => console.log('MongoDB connection error:', error));
 
+// Server setup
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
