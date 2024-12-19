@@ -11,6 +11,7 @@ const propertySchema = new mongoose.Schema(
     location: { type: String, required: true },
     localAddress: { type: String, required: true },
     area: { type: Number, required: true },
+    googleMapLink: { type: String, required: true },
     availableFrom: { type: String , required: true },
     propertyInfo : { type: String, required: true },
     propertyAge : { type: Number, required: true },
