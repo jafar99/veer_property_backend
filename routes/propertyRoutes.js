@@ -73,18 +73,34 @@ router.put('/:id', upload.array('images', 10), async (req, res) => {
   console.log('Received files for update:', req.files); // Log incoming files
 
   try {
-    const images = req.files.map((file) => `/uploads/${file.filename}`); // Update with uploaded file paths
-    const updatedData = { ...req.body, images };
-    const property = await Property.findByIdAndUpdate(req.params.id, updatedData, { new: true });
-    if (!property) {
+    const existingProperty = await Property.findById(req.params.id);
+    if (!existingProperty) {
       return res.status(404).send('Property not found');
     }
-    res.json(property);
+
+    // Process new images if any are uploaded
+    const uploadedImages = req.files.map((file) => `/uploads/${file.filename}`);
+    
+    // Merge existing images with new ones, if no new images are uploaded, retain existing ones
+    const images = uploadedImages.length > 0 
+      ? [...existingProperty.images, ...uploadedImages] 
+      : existingProperty.images;
+
+    // Update other fields from the request body
+    const updatedData = { 
+      ...req.body,
+      images // Include the merged images array
+    };
+
+    const updatedProperty = await Property.findByIdAndUpdate(req.params.id, updatedData, { new: true });
+
+    res.json(updatedProperty);
   } catch (err) {
     console.error('Error updating property:', err);
     res.status(400).send(err.message);
   }
 });
+
 
 // Delete a property
 router.delete('/:id', async (req, res) => {

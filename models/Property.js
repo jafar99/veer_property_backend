@@ -18,6 +18,8 @@ const propertySchema = new mongoose.Schema(
     propertyFacing : { type: String, required: true },
     propertyFloor : { type: Number, required: true },
     propertyTotalFloor : { type: Number, required: true },
+    googldriveimage : { type: String , required: true },
+    gooogledrivevideo : { type: String, required: true },
     agreement : { type: String, required: true },
     amenities : { type: String, required: true },
     features : { type: String, required: true },
