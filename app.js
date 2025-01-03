@@ -3,21 +3,22 @@ const mongoose = require('mongoose');
 const propertyRoutes = require('./routes/propertyRoutes');
 const cors = require('cors');
 const path = require('path');
+require('dotenv').config(); // Load environment variables from .env file
 
 const app = express();
 
 // Middleware
-app.use(cors()); // Enable CORS for front-end requests
-app.use(express.json()); // Parse JSON request bodies
+app.use(cors());
+app.use(express.json());
 
 // Routes
 app.use('/api/properties', propertyRoutes);
 
-// Serve static files from the "uploads" directory
+// Serve static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// MongoDB Connection String
-const dbURI = "mongodb+srv://jafarhajariiam:14051999@cluster0.shrc2.mongodb.net/real-estate?retryWrites=true&w=majority";
+// MongoDB Connection String from .env
+const dbURI = process.env.MONGO_URI; // Get connection string from environment variables
 
 // Database Connection
 mongoose
