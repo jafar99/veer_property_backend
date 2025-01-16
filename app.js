@@ -23,7 +23,9 @@ const dbURI = process.env.MONGO_URI; // Get connection string from environment v
 // Database Connection
 mongoose
   .connect(dbURI, { serverSelectionTimeoutMS: 5000 })
-  .then(() => console.log('Connected to MongoDB'))
+  .then(() => {
+    // console.log('MongoDB connected successfully');
+  } )
   .catch((error) => {
     console.error('MongoDB connection error:', error);
     process.exit(1); // Exit the process if connection fails
@@ -32,5 +34,5 @@ mongoose
 // Server Setup
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  // console.log(`Server running on port ${PORT}`);
 });

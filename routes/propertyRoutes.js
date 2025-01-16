@@ -52,8 +52,8 @@ router.get('/:id', async (req, res) => {
 
 // Add a new property
 router.post('/', upload.array('images', 10), async (req, res) => {
-  console.log('Received data:', req.body); // Log incoming data
-  console.log('Received files:', req.files); // Log incoming files
+  // console.log('Received data:', req.body); // Log incoming data
+  // console.log('Received files:', req.files); // Log incoming files
 
   try {
     const images = req.files.map((file) => `/uploads/${file.filename}`); // Store uploaded file paths
@@ -69,8 +69,8 @@ router.post('/', upload.array('images', 10), async (req, res) => {
 
 // Update a property
 router.put('/:id', upload.array('images', 10), async (req, res) => {
-  console.log('Received data for update:', req.body); // Log incoming data
-  console.log('Received files for update:', req.files); // Log incoming files
+  // console.log('Received data for update:', req.body); // Log incoming data
+  // console.log('Received files for update:', req.files); // Log incoming files
 
   try {
     const existingProperty = await Property.findById(req.params.id);
