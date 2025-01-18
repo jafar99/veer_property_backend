@@ -11,6 +11,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// create cors for fronted url 
+app.use(cors({
+  origin: 'https://veer-property-frontend.vercel.app/',
+  credentials: true
+}));
+
+
 // Routes
 app.use('/api/properties', propertyRoutes);
 
