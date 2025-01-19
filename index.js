@@ -13,9 +13,8 @@ app.use(express.json());
 
 // create cors for fronted url 
 app.use(cors({
-  origin: 'https://veer-property-frontend.vercel.app', // Ensure no trailing slash
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true // Enable cookies or authentication headers if needed
+  origin: 'https://veer-property-frontend.vercel.app/',
+  credentials: true
 }));
 
 
