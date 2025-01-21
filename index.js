@@ -4,72 +4,55 @@ const propertyRoutes = require('./routes/propertyRoutes');
 const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
-const morgan = require('morgan'); // Optional: For HTTP logging
+const morgan = require('morgan');
 
-dotenv.config(); // Load environment variables from .env file
+dotenv.config();
 
 const app = express();
 
-// Middleware
 app.use(express.json());
 
-// Enable logging in development mode (optional)
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// CORS for the front-end URL
 const corsOptions = {
-  origin: 'https://veer-property-frontend.vercel.app', // Frontend URL
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allow these HTTP methods
-  allowedHeaders: ['Content-Type', 'Authorization'], // Allow these headers
-  credentials: true, // Enable credentials (cookies, auth headers)
+  origin: 'https://veer-property-frontend.vercel.app',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
 };
-
 app.use(cors(corsOptions));
 
-// Routes for property-related actions
 app.use('/api/properties', propertyRoutes);
 
-// Serve static files (for images)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// MongoDB Connection String from .env
-const mongoURI = process.env.MONGO_URI; // MongoDB URI
-
-// Create MongoDB connection
-const conn = mongoose.createConnection(mongoURI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+const mongoURI = process.env.MONGO_URI;
 
 let gfs;
+const conn = mongoose.createConnection(mongoURI);
 
-// Open a connection to GridFS
 conn.once('open', () => {
-  gfs = new mongoose.mongo.GridFSBucket(conn.db, {
-    bucketName: 'uploads', // The collection name where files will be stored
-  });
+  gfs = new mongoose.mongo.GridFSBucket(conn.db, { bucketName: 'uploads' });
+  console.log('GridFS initialized');
 });
 
-// Database Connection
 mongoose
-  .connect(mongoURI, { serverSelectionTimeoutMS: 5000 })
+  .connect(mongoURI)
   .then(() => {
     console.log('MongoDB connected successfully');
   })
   .catch((error) => {
     console.error('MongoDB connection error:', error);
-    process.exit(1); // Exit the process if connection fails
+    process.exit(1);
   });
 
-// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err);
   res.status(500).send({ error: 'Something went wrong!' });
 });
 
-// Server Setup
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

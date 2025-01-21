@@ -3,7 +3,7 @@ const multer = require('multer');
 const mongoose = require('mongoose');
 const Property = require('../models/Property');
 const crypto = require('crypto');
-const GridFsStorage = require('multer-gridfs-storage');
+const { GridFsStorage } = require('multer-gridfs-storage'); // Ensure correct import
 const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
@@ -15,13 +15,10 @@ const router = express.Router();
 router.use(cors());
 
 // MongoDB connection URI
-const mongoURI = process.env.MONGO_URI; // MongoDB URI
+const mongoURI = process.env.MONGO_URI; // Ensure this is defined in your .env file
 
 // Create MongoDB connection
-const conn = mongoose.createConnection(mongoURI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+const conn = mongoose.createConnection(mongoURI);
 
 let gfs;
 
@@ -35,8 +32,9 @@ conn.once('open', () => {
 // Configure GridFS storage for multer
 const storage = new GridFsStorage({
   url: mongoURI,
-  file: (req, file) => {
-    return new Promise((resolve, reject) => {
+  options: { useUnifiedTopology: true },
+  file: (req, file) =>
+    new Promise((resolve, reject) => {
       crypto.randomBytes(16, (err, buffer) => {
         if (err) return reject(err);
 
@@ -47,8 +45,7 @@ const storage = new GridFsStorage({
         };
         resolve(fileInfo);
       });
-    });
-  },
+    }),
 });
 
 const upload = multer({ storage });
@@ -60,7 +57,7 @@ router.get('/', async (req, res) => {
     res.json(properties);
   } catch (err) {
     console.error('Error fetching properties:', err);
-    res.status(500).send(err.message);
+    res.status(500).send({ error: 'Failed to fetch properties' });
   }
 });
 
@@ -69,22 +66,21 @@ router.get('/:id', async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
     if (!property) {
-      return res.status(404).send('Property not found');
+      return res.status(404).send({ error: 'Property not found' });
     }
     res.json(property);
   } catch (err) {
     console.error('Error fetching property:', err);
-    res.status(500).send(err.message);
+    res.status(500).send({ error: 'Failed to fetch property' });
   }
 });
 
 // Add a new property
 router.post('/', upload.array('images', 10), async (req, res) => {
   try {
-    // Handle image files and store file paths in the database
     const images = req.files.map((file) => ({
       filename: file.filename,
-      id: file.id, // Store the file ID from GridFS for reference
+      id: file.id, // GridFS file ID
     }));
 
     const propertyData = { ...req.body, images };
@@ -93,7 +89,7 @@ router.post('/', upload.array('images', 10), async (req, res) => {
     res.status(201).json(property);
   } catch (err) {
     console.error('Error adding property:', err);
-    res.status(400).send(err.message);
+    res.status(400).send({ error: 'Failed to add property' });
   }
 });
 
@@ -102,32 +98,34 @@ router.put('/:id', upload.array('images', 10), async (req, res) => {
   try {
     const existingProperty = await Property.findById(req.params.id);
     if (!existingProperty) {
-      return res.status(404).send('Property not found');
+      return res.status(404).send({ error: 'Property not found' });
     }
 
-    // Process new images if any are uploaded
     const uploadedImages = req.files.map((file) => ({
       filename: file.filename,
-      id: file.id, // Store GridFS file ID
+      id: file.id, // GridFS file ID
     }));
 
-    // Merge existing images with new ones, if no new images are uploaded, retain existing ones
-    const images = uploadedImages.length > 0
-      ? [...existingProperty.images, ...uploadedImages]
-      : existingProperty.images;
+    const images =
+      uploadedImages.length > 0
+        ? [...existingProperty.images, ...uploadedImages]
+        : existingProperty.images;
 
-    // Update other fields from the request body
     const updatedData = {
       ...req.body,
-      images, // Include the merged images array
+      images,
     };
 
-    const updatedProperty = await Property.findByIdAndUpdate(req.params.id, updatedData, { new: true });
+    const updatedProperty = await Property.findByIdAndUpdate(
+      req.params.id,
+      updatedData,
+      { new: true }
+    );
 
     res.json(updatedProperty);
   } catch (err) {
     console.error('Error updating property:', err);
-    res.status(400).send(err.message);
+    res.status(400).send({ error: 'Failed to update property' });
   }
 });
 
@@ -136,31 +134,35 @@ router.delete('/:id', async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
     if (!property) {
-      return res.status(404).send('Property not found');
+      return res.status(404).send({ error: 'Property not found' });
     }
 
-    // Optionally, delete the associated images from GridFS (optional based on your requirements)
-    property.images.forEach((image) => {
-      gfs.delete(new mongoose.Types.ObjectId(image.id), (err) => {
-        if (err) console.log('Error deleting image:', err);
+    // Delete associated images from GridFS
+    if (property.images) {
+      property.images.forEach((image) => {
+        gfs.delete(new mongoose.Types.ObjectId(image.id), (err) => {
+          if (err) console.error('Error deleting image:', err);
+        });
       });
-    });
+    }
 
     await Property.findByIdAndDelete(req.params.id);
     res.status(204).send();
   } catch (err) {
     console.error('Error deleting property:', err);
-    res.status(500).send(err.message);
+    res.status(500).send({ error: 'Failed to delete property' });
   }
 });
 
 // Serve images from MongoDB GridFS
 router.get('/image/:filename', (req, res) => {
   const filename = req.params.filename;
-  gfs.openDownloadStreamByName(filename)
+  gfs
+    .openDownloadStreamByName(filename)
     .pipe(res)
     .on('error', (err) => {
-      res.status(404).send('File not found');
+      console.error('Error fetching file:', err);
+      res.status(404).send({ error: 'File not found' });
     });
 });
 
