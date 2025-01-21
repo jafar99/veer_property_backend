@@ -11,7 +11,6 @@ dotenv.config(); // Load environment variables from .env file
 const app = express();
 
 // Middleware
-app.use(cors());
 app.use(express.json());
 
 // Enable logging in development mode (optional)
@@ -20,10 +19,14 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // CORS for the front-end URL
-app.use(cors({
-  origin: 'https://veer-property-frontend.vercel.app',
-  credentials: true
-}));
+const corsOptions = {
+  origin: 'https://veer-property-frontend.vercel.app', // Frontend URL
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allow these HTTP methods
+  allowedHeaders: ['Content-Type', 'Authorization'], // Allow these headers
+  credentials: true, // Enable credentials (cookies, auth headers)
+};
+
+app.use(cors(corsOptions));
 
 // Routes for property-related actions
 app.use('/api/properties', propertyRoutes);
