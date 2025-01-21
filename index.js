@@ -5,12 +5,18 @@ const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
+const helmet = require('helmet');
 
 dotenv.config();
+
+if (!process.env.MONGO_URI || !process.env.PORT) {
+  throw new Error('Missing required environment variables.');
+}
 
 const app = express();
 
 app.use(express.json());
+app.use(helmet());
 
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
@@ -27,6 +33,10 @@ app.use(cors(corsOptions));
 app.use('/api/properties', propertyRoutes);
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+app.get('/health', (req, res) => {
+  res.send({ status: 'Server is running' });
+});
 
 const mongoURI = process.env.MONGO_URI;
 
@@ -49,11 +59,19 @@ mongoose
   });
 
 app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).send({ error: 'Something went wrong!' });
+  console.error(err.stack);
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal Server Error',
+  });
 });
 
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+process.on('SIGINT', async () => {
+  console.log('Shutting down gracefully...');
+  await mongoose.connection.close();
+  process.exit(0);
 });

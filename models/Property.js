@@ -27,9 +27,9 @@ const propertySchema = new mongoose.Schema(
     // Updated to store images in GridFS
     images: [
       {
-        filename: { type: String },  // Store the filename
-        id: { type: mongoose.Schema.Types.ObjectId, ref: 'GridFSFile' },  // Store the GridFS file ID
-      }
+        filename: { type: String },
+        id: { type: mongoose.Schema.Types.ObjectId, ref: 'GridFSFile' },
+      },
     ],
   },
   { timestamps: true }
