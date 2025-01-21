@@ -16,6 +16,7 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "gridfs-stream": "^1.1.1",
+    "helmet": "^8.0.0",
     "mongodb": "^5.9.2",
     "mongoose": "^7.8.6",
     "morgan": "^1.10.0",
