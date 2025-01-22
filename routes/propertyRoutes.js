@@ -110,6 +110,16 @@ router.put('/:id', upload.array('images', 10), validateProperty, async (req, res
       return res.status(404).send({ error: 'Property not found' });
     }
 
+    // Sanitize request body
+    const updatedData = { ...req.body };
+
+    // If price is null or invalid, delete it from the update object
+    if (updatedData.price === null || isNaN(Number(updatedData.price))) {
+      delete updatedData.price;
+    } else {
+      updatedData.price = Number(updatedData.price); // Ensure it's a number
+    }
+
     const uploadedImages = req.files.map((file) => ({
       filename: file.filename,
       id: file.id,
@@ -120,10 +130,7 @@ router.put('/:id', upload.array('images', 10), validateProperty, async (req, res
         ? [...existingProperty.images, ...uploadedImages]
         : existingProperty.images;
 
-    const updatedData = {
-      ...req.body,
-      images,
-    };
+    updatedData.images = images;
 
     const updatedProperty = await Property.findByIdAndUpdate(req.params.id, updatedData, {
       new: true,
@@ -135,6 +142,7 @@ router.put('/:id', upload.array('images', 10), validateProperty, async (req, res
     res.status(400).send({ error: 'Failed to update property' });
   }
 });
+
 
 // Delete a property
 router.delete('/:id', async (req, res) => {
