@@ -34,6 +34,8 @@ app.use('/api/properties', propertyRoutes);
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+app.use('/images', express.static(path.join(__dirname, 'public/images')));
+
 app.get('/health', (req, res) => {
   res.send({ status: 'Server is running' });
 });
