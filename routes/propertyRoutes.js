@@ -3,6 +3,7 @@ const multer = require('multer');
 const mongoose = require('mongoose');
 const Property = require('../models/Property');
 const crypto = require('crypto');
+const path = require('path');
 const { GridFsStorage } = require('multer-gridfs-storage');
 const { body, validationResult } = require('express-validator');
 
