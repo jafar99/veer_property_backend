@@ -6,6 +6,8 @@ const path = require('path');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
 const helmet = require('helmet');
+const crypto = require('crypto');
+const { GridFsStorage } = require('multer-gridfs-storage');
 
 dotenv.config();
 
@@ -30,17 +32,24 @@ const allowedOrigins = [
 ];
 
 const corsOptions = {
-  origin: '*', // Allow requests from all origins (or set specific origins)
+  origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
 };
 app.use(cors(corsOptions));
 
+// MongoDB connection
+const mongoURI = process.env.MONGO_URI;
+const conn = mongoose.createConnection(mongoURI);
+
+// Initialize GridFS
+let gfs;
+conn.once('open', () => {
+  gfs = new mongoose.mongo.GridFSBucket(conn.db, { bucketName: 'uploads' });
+  console.log('GridFS initialized');
+});
 
 // Property routes
 app.use('/api/properties', propertyRoutes);
-
-// Serve static images
-app.use('/images', express.static(path.join(__dirname, 'public/images')));
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
@@ -48,17 +57,28 @@ app.get('/health', async (req, res) => {
   res.send({ status: 'Server is running', dbStatus });
 });
 
-// MongoDB connection
-const mongoURI = process.env.MONGO_URI;
+// Serve images from MongoDB GridFS
+app.get('/images/:filename', (req, res) => {
+  const filename = req.params.filename;
 
-let gfs;
-const conn = mongoose.createConnection(mongoURI);
+  // Search for the file in the GridFS bucket
+  gfs.files.findOne({ filename: filename }, (err, file) => {
+    if (err || !file) {
+      return res.status(404).send({ message: 'Image not found' });
+    }
 
-conn.once('open', () => {
-  gfs = new mongoose.mongo.GridFSBucket(conn.db, { bucketName: 'uploads' });
-  console.log('GridFS initialized');
+    // Check if the file is an image
+    if (file.contentType && file.contentType.startsWith('image/')) {
+      const readstream = gfs.createReadStream(file.filename);
+      res.set('Content-Type', file.contentType);  // Set the correct image type
+      readstream.pipe(res); // Send the image back in the response
+    } else {
+      return res.status(404).send({ message: 'Not an image file' });
+    }
+  });
 });
 
+// MongoDB connection
 mongoose
   .connect(mongoURI)
   .then(() => {
