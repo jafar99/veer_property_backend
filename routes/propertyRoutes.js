@@ -7,22 +7,17 @@ const { GridFsStorage } = require('multer-gridfs-storage');
 const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
+
 dotenv.config();
 
 const router = express.Router();
-
-// Enable CORS for front-end requests
 router.use(cors());
 
 // MongoDB connection URI
 const mongoURI = process.env.MONGO_URI;
-
-// Create MongoDB connection
 const conn = mongoose.createConnection(mongoURI);
 
 let gfs;
-
-// Open a connection to GridFS
 conn.once('open', () => {
   gfs = new mongoose.mongo.GridFSBucket(conn.db, {
     bucketName: 'uploads',
@@ -37,10 +32,9 @@ const storage = new GridFsStorage({
     new Promise((resolve, reject) => {
       crypto.randomBytes(16, (err, buffer) => {
         if (err) return reject(err);
-
         const filename = buffer.toString('hex') + path.extname(file.originalname);
         const fileInfo = {
-          filename: filename,
+          filename,
           bucketName: 'uploads',
         };
         resolve(fileInfo);
@@ -135,7 +129,6 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).send({ error: 'Property not found' });
     }
 
-    // Delete associated images from GridFS
     if (property.images) {
       for (const image of property.images) {
         await gfs.delete(new mongoose.Types.ObjectId(image.id));
@@ -152,15 +145,12 @@ router.delete('/:id', async (req, res) => {
 
 // Serve images from MongoDB GridFS
 router.get('/image/:filename', (req, res) => {
-  const filename = req.params.filename;
-  gfs.openDownloadStreamByName(filename)
+  gfs.openDownloadStreamByName(req.params.filename)
     .pipe(res)
     .on('error', (err) => {
       console.error('Error fetching file:', err);
       res.status(404).send({ error: 'File not found' });
     });
 });
-
-
 
 module.exports = router;

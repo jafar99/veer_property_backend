@@ -18,28 +18,45 @@ const app = express();
 app.use(express.json());
 app.use(helmet());
 
+// Logging for development
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
+// CORS configuration
+const allowedOrigins = [
+  'https://veer-property-frontend.vercel.app',
+  'http://localhost:3000', // For local development
+];
+
 const corsOptions = {
-  origin: 'https://veer-property-frontend.vercel.app',
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
 };
 app.use(cors(corsOptions));
 
+// Property routes
 app.use('/api/properties', propertyRoutes);
 
+// Serve static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
 
-app.get('/health', (req, res) => {
-  res.send({ status: 'Server is running' });
+// Health check endpoint
+app.get('/health', async (req, res) => {
+  const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+  res.send({ status: 'Server is running', dbStatus });
 });
 
+// MongoDB connection
 const mongoURI = process.env.MONGO_URI;
 
 let gfs;
@@ -60,20 +77,24 @@ mongoose
     process.exit(1);
   });
 
+// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(err.status || 500).json({
-    error: err.message || 'Internal Server Error',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal Server Error',
   });
 });
 
+// Start the server
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
+// Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('Shutting down gracefully...');
   await mongoose.connection.close();
+  conn.close();
   process.exit(0);
 });
