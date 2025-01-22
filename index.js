@@ -26,11 +26,14 @@ if (process.env.NODE_ENV === 'development') {
 // CORS configuration
 const allowedOrigins = [
   'https://veer-property-frontend.vercel.app',
- 
+  'http://localhost:3000', // Add this if you're working in local development
 ];
 
 const corsOptions = {
   origin: (origin, callback) => {
+    // Log the origin to see what's being sent
+    console.log('Request Origin:', origin);
+
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -46,7 +49,7 @@ app.use(cors(corsOptions));
 // Property routes
 app.use('/api/properties', propertyRoutes);
 
-
+// Serve static images
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
 
 // Health check endpoint
