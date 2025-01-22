@@ -56,21 +56,7 @@ app.get('/health', async (req, res) => {
   res.send({ status: 'Server is running', dbStatus });
 });
 
-// Serve images from MongoDB GridFS
-// app.get('/api/images/:filename', async (req, res) => {
-//   try {
-//     const file = await gfs.find({ filename: req.params.filename }).toArray();
-//     if (!file[0]) {
-//       return res.status(404).json({ error: 'File not found' });
-//     }
-//     const readStream = gfs.openDownloadStreamByName(req.params.filename);
-//     readStream.pipe(res);
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).json({ error: 'Internal Server Error' });
-//   }
-// });
-// MongoDB connection
+
 mongoose
   .connect(mongoURI)
   .then(() => {
