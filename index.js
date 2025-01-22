@@ -6,8 +6,6 @@ const path = require('path');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
 const helmet = require('helmet');
-const crypto = require('crypto');
-const { GridFsStorage } = require('multer-gridfs-storage');
 
 dotenv.config();
 
@@ -26,10 +24,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // CORS configuration
-const allowedOrigins = [
-  'https://veer-property-frontend.vercel.app',
-];
-
+const allowedOrigins = ['https://veer-property-frontend.vercel.app'];
 const corsOptions = {
   origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -40,7 +35,6 @@ app.use(cors(corsOptions));
 const mongoURI = process.env.MONGO_URI;
 const conn = mongoose.createConnection(mongoURI);
 
-// Initialize GridFS
 let gfs;
 conn.once('open', () => {
   gfs = new mongoose.mongo.GridFSBucket(conn.db, { bucketName: 'uploads' });
@@ -55,7 +49,6 @@ app.get('/health', async (req, res) => {
   const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
   res.send({ status: 'Server is running', dbStatus });
 });
-
 
 mongoose
   .connect(mongoURI)

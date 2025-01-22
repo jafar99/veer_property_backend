@@ -4,14 +4,9 @@ const mongoose = require('mongoose');
 const Property = require('../models/Property');
 const crypto = require('crypto');
 const { GridFsStorage } = require('multer-gridfs-storage');
-const cors = require('cors');
-const path = require('path');
-const dotenv = require('dotenv');
-
-dotenv.config();
+const { body, validationResult } = require('express-validator');
 
 const router = express.Router();
-router.use(cors());
 
 // MongoDB connection URI
 const mongoURI = process.env.MONGO_URI;
@@ -19,9 +14,7 @@ const conn = mongoose.createConnection(mongoURI);
 
 let gfs;
 conn.once('open', () => {
-  gfs = new mongoose.mongo.GridFSBucket(conn.db, {
-    bucketName: 'uploads',
-  });
+  gfs = new mongoose.mongo.GridFSBucket(conn.db, { bucketName: 'uploads' });
 });
 
 // Configure GridFS storage for multer
@@ -44,11 +37,22 @@ const storage = new GridFsStorage({
 
 const upload = multer({ storage });
 
-// Get all properties
+// Middleware for validating input
+const validateProperty = [
+  body('title').notEmpty().withMessage('Title is required'),
+
+];
+
+// Get all properties with pagination
 router.get('/', async (req, res) => {
   try {
-    const properties = await Property.find().lean();
-    res.json(properties);
+    const { page = 1, limit = 10 } = req.query;
+    const properties = await Property.find()
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
+      .lean();
+    const total = await Property.countDocuments();
+    res.json({ properties, total, page, limit });
   } catch (err) {
     console.error('Error fetching properties:', err);
     res.status(500).send({ error: 'Failed to fetch properties' });
@@ -70,7 +74,12 @@ router.get('/:id', async (req, res) => {
 });
 
 // Add a new property
-router.post('/', upload.array('images', 10), async (req, res) => {
+router.post('/', upload.array('images', 10), validateProperty, async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   try {
     const images = req.files.map((file) => ({
       filename: file.filename,
@@ -88,7 +97,12 @@ router.post('/', upload.array('images', 10), async (req, res) => {
 });
 
 // Update a property
-router.put('/:id', upload.array('images', 10), async (req, res) => {
+router.put('/:id', upload.array('images', 10), validateProperty, async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   try {
     const existingProperty = await Property.findById(req.params.id);
     if (!existingProperty) {
@@ -144,39 +158,20 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Serve images from MongoDB GridFS
-// Backend route to serve images from GridFS
-// Assuming `gfs` is the GridFS instance for MongoDB
-// Serve images from MongoDB GridFS
-
 router.get('/images/:filename', (req, res) => {
   const filename = req.params.filename;
 
-  gfs.files.findOne({ filename: filename }, (err, file) => {
-    if (err) {
-      console.error('Error retrieving file:', err);
-      return res.status(500).send({ message: 'Error retrieving file' });
-    }
-
-    if (!file) {
-      console.warn('File not found:', filename);
-      return res.status(404).send({ message: 'Image not found' });
-    }
+  gfs.files.findOne({ filename }, (err, file) => {
+    if (err || !file) return res.status(404).send({ message: 'Image not found' });
 
     if (file.contentType && file.contentType.startsWith('image/')) {
       const readstream = gfs.createReadStream(file.filename);
       res.set('Content-Type', file.contentType);
       readstream.pipe(res);
     } else {
-      console.warn('File is not an image:', filename);
-      return res.status(404).send({ message: 'Not an image file' });
+      res.status(404).send({ message: 'Not an image file' });
     }
   });
 });
-
-
-
-
-
-
 
 module.exports = router;
