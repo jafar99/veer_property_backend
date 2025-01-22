@@ -144,13 +144,16 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Serve images from MongoDB GridFS
-router.get('/image/:filename', (req, res) => {
-  gfs.openDownloadStreamByName(req.params.filename)
+// Backend route to serve images from GridFS
+router.get('/images/:filename', (req, res) => {
+  const { filename } = req.params;
+  gfs.openDownloadStreamByName(filename)
     .pipe(res)
     .on('error', (err) => {
       console.error('Error fetching file:', err);
       res.status(404).send({ error: 'File not found' });
     });
 });
+
 
 module.exports = router;

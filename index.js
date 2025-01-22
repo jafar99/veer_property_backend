@@ -30,21 +30,11 @@ const allowedOrigins = [
 ];
 
 const corsOptions = {
-  origin: (origin, callback) => {
-    // Log the origin to see what's being sent
-    console.log('Request Origin:', origin);
-
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: '*', // Allow requests from all origins (or set specific origins)
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
 };
 app.use(cors(corsOptions));
+
 
 // Property routes
 app.use('/api/properties', propertyRoutes);
