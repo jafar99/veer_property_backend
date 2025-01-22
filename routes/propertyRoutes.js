@@ -147,7 +147,7 @@ router.delete('/:id', async (req, res) => {
 // Backend route to serve images from GridFS
 // Assuming `gfs` is the GridFS instance for MongoDB
 // Serve images from MongoDB GridFS
-app.get('/images/:filename', (req, res) => {
+router.get('/images/:filename', (req, res) => {
   const filename = req.params.filename;
 
   gfs.files.findOne({ filename: filename }, (err, file) => {
@@ -171,6 +171,7 @@ app.get('/images/:filename', (req, res) => {
     }
   });
 });
+
 
 
 
