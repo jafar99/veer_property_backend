@@ -120,6 +120,34 @@ router.put('/:id', upload.array('images', 10), validateProperty, async (req, res
       updatedData.price = Number(updatedData.price); // Ensure it's a number
     }
 
+    if (updatedData.area === null || updatedData.area === '' || isNaN(Number(updatedData.area))) {
+      delete updatedData.area; // Remove invalid area from update
+    } else {
+      updatedData.area = Number(updatedData.area); // Ensure it's a number
+    }
+
+    if (updatedData.propertyAge === null || isNaN(Number(updatedData.propertyAge))) {
+      delete updatedData.propertyAge;
+    } else {
+      updatedData.propertyAge = Number(updatedData.propertyAge);
+    }
+
+    if (updatedData.propertyFloor === null || isNaN(Number(updatedData.propertyFloor))) {
+      delete updatedData.propertyFloor;
+    } else {
+      updatedData.propertyFloor = Number(updatedData.propertyFloor);
+    }
+
+    if (updatedData.propertyTotalFloor === null || isNaN(Number(updatedData.propertyTotalFloor))) {
+      delete updatedData.propertyTotalFloor;
+    } else {
+      updatedData.propertyTotalFloor = Number(updatedData.propertyTotalFloor);
+    }
+
+    // Update images
+     
+    
+
     const uploadedImages = req.files.map((file) => ({
       filename: file.filename,
       id: file.id,
