@@ -147,29 +147,19 @@ router.delete('/:id', async (req, res) => {
 // Backend route to serve images from GridFS
 // Assuming `gfs` is the GridFS instance for MongoDB
 // Serve images from MongoDB GridFS
-router.get('/images/:filename', (req, res) => {
-  const filename = req.params.filename;
 
-  gfs.files.findOne({ filename: filename }, (err, file) => {
-    if (err) {
-      console.error('Error retrieving file:', err);
-      return res.status(500).send({ message: 'Error retrieving file' });
+router.get('/images/:filename', async (req, res) => {
+  try {
+    const file = await gfs.find({ filename: req.params.filename }).toArray();
+    if (!file[0]) {
+      return res.status(404).json({ error: 'File not found' });
     }
-
-    if (!file) {
-      console.warn('File not found:', filename);
-      return res.status(404).send({ message: 'Image not found' });
-    }
-
-    if (file.contentType && file.contentType.startsWith('image/')) {
-      const readstream = gfs.createReadStream(file.filename);
-      res.set('Content-Type', file.contentType);
-      readstream.pipe(res);
-    } else {
-      console.warn('File is not an image:', filename);
-      return res.status(404).send({ message: 'Not an image file' });
-    }
-  });
+    const readStream = gfs.openDownloadStreamByName(req.params.filename);
+    readStream.pipe(res);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
 
 

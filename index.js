@@ -57,26 +57,19 @@ app.get('/health', async (req, res) => {
 });
 
 // Serve images from MongoDB GridFS
-app.get('/images/:filename', (req, res) => {
-  const filename = req.params.filename;
-
-  // Search for the file in the GridFS bucket
-  gfs.files.findOne({ filename: filename }, (err, file) => {
-    if (err || !file) {
-      return res.status(404).send({ message: 'Image not found' });
-    }
-
-    // Check if the file is an image
-    if (file.contentType && file.contentType.startsWith('image/')) {
-      const readstream = gfs.createReadStream(file.filename);
-      res.set('Content-Type', file.contentType);  // Set the correct image type
-      readstream.pipe(res); // Send the image back in the response
-    } else {
-      return res.status(404).send({ message: 'Not an image file' });
-    }
-  });
-});
-
+// app.get('/api/images/:filename', async (req, res) => {
+//   try {
+//     const file = await gfs.find({ filename: req.params.filename }).toArray();
+//     if (!file[0]) {
+//       return res.status(404).json({ error: 'File not found' });
+//     }
+//     const readStream = gfs.openDownloadStreamByName(req.params.filename);
+//     readStream.pipe(res);
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ error: 'Internal Server Error' });
+//   }
+// });
 // MongoDB connection
 mongoose
   .connect(mongoURI)
