@@ -4,22 +4,14 @@ const mongoose = require('mongoose');
 const Property = require('../models/Property');
 const crypto = require('crypto');
 const path = require('path');
-const { gfs } = require('../index');
 const { GridFsStorage } = require('multer-gridfs-storage');
 const { body, validationResult } = require('express-validator');
+const { gfs } = require('../index'); // Use gfs from server.js
 
 const router = express.Router();
 
-// MongoDB connection URI
-const mongoURI = process.env.MONGO_URI;
-const conn = mongoose.createConnection(mongoURI);
-
-let gfs;
-conn.once('open', () => {
-  gfs = new mongoose.mongo.GridFSBucket(conn.db, { bucketName: 'uploads' }); // Using 'uploads' bucket
-});
-
 // Configure GridFS storage for multer
+const mongoURI = process.env.MONGO_URI;
 const storage = new GridFsStorage({
   url: mongoURI,
   options: { useUnifiedTopology: true },
@@ -30,7 +22,7 @@ const storage = new GridFsStorage({
         const filename = buffer.toString('hex') + path.extname(file.originalname);
         const fileInfo = {
           filename,
-          bucketName: 'uploads', // Specify bucket name
+          bucketName: 'uploads',
         };
         resolve(fileInfo);
       });
@@ -113,17 +105,16 @@ router.put('/:id', upload.array('images', 10), validateProperty, async (req, res
     // Sanitize request body
     const updatedData = { ...req.body };
 
-    // If price is null or invalid, delete it from the update object
     if (updatedData.price === null || isNaN(Number(updatedData.price))) {
       delete updatedData.price;
     } else {
-      updatedData.price = Number(updatedData.price); // Ensure it's a number
+      updatedData.price = Number(updatedData.price);
     }
 
     if (updatedData.area === null || updatedData.area === '' || isNaN(Number(updatedData.area))) {
-      delete updatedData.area; // Remove invalid area from update
+      delete updatedData.area;
     } else {
-      updatedData.area = Number(updatedData.area); // Ensure it's a number
+      updatedData.area = Number(updatedData.area);
     }
 
     if (updatedData.propertyAge === null || isNaN(Number(updatedData.propertyAge))) {
@@ -144,7 +135,6 @@ router.put('/:id', upload.array('images', 10), validateProperty, async (req, res
       updatedData.propertyTotalFloor = Number(updatedData.propertyTotalFloor);
     }
 
-    // Update images
     const uploadedImages = req.files.map((file) => ({
       filename: file.filename,
       id: file.id,
@@ -199,10 +189,9 @@ router.get('/images/:filename', (req, res) => {
       return res.status(404).send({ message: 'Image not found' });
     }
 
-    const file = files[0]; // Get the first file (filenames should be unique)
-
+    const file = files[0];
     if (file.contentType && file.contentType.startsWith('image/')) {
-      const readstream = gfs.openDownloadStreamByName(file.filename);
+      const readstream = gfs.openDownloadStreamByName(filename);
       res.set('Content-Type', file.contentType);
       readstream.pipe(res);
     } else {
