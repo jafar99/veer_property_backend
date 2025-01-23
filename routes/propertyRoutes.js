@@ -53,7 +53,7 @@ router.get('/', async (req, res) => {
 
 // Serve images from MongoDB GridFS
 // Serve images from MongoDB GridFS
-app.get('/images/:filename', (req, res) => {
+router.get('/images/:filename', (req, res) => {
   const gfs = req.gfs; // Access `gfs` from the request object
   const filename = req.params.filename;
 
