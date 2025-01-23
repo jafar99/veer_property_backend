@@ -6,7 +6,6 @@ const crypto = require('crypto');
 const path = require('path');
 const { GridFsStorage } = require('multer-gridfs-storage');
 const { body, validationResult } = require('express-validator');
-const { gfs } = require('../index'); // Use gfs from server.js
 
 const router = express.Router();
 
@@ -52,136 +51,9 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get a property by ID
-router.get('/:id', async (req, res) => {
-  try {
-    const property = await Property.findById(req.params.id).lean();
-    if (!property) {
-      return res.status(404).send({ error: 'Property not found' });
-    }
-    res.json(property);
-  } catch (err) {
-    console.error('Error fetching property:', err);
-    res.status(500).send({ error: 'Failed to fetch property' });
-  }
-});
-
-// Add a new property
-router.post('/', upload.array('images', 10), validateProperty, async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  try {
-    const images = req.files.map((file) => ({
-      filename: file.filename,
-      id: file.id,
-    }));
-
-    const propertyData = { ...req.body, images };
-    const property = new Property(propertyData);
-    await property.save();
-    res.status(201).json(property);
-  } catch (err) {
-    console.error('Error adding property:', err);
-    res.status(400).send({ error: 'Failed to add property' });
-  }
-});
-
-// Update a property
-router.put('/:id', upload.array('images', 10), validateProperty, async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  try {
-    const existingProperty = await Property.findById(req.params.id);
-    if (!existingProperty) {
-      return res.status(404).send({ error: 'Property not found' });
-    }
-
-    // Sanitize request body
-    const updatedData = { ...req.body };
-
-    if (updatedData.price === null || isNaN(Number(updatedData.price))) {
-      delete updatedData.price;
-    } else {
-      updatedData.price = Number(updatedData.price);
-    }
-
-    if (updatedData.area === null || updatedData.area === '' || isNaN(Number(updatedData.area))) {
-      delete updatedData.area;
-    } else {
-      updatedData.area = Number(updatedData.area);
-    }
-
-    if (updatedData.propertyAge === null || isNaN(Number(updatedData.propertyAge))) {
-      delete updatedData.propertyAge;
-    } else {
-      updatedData.propertyAge = Number(updatedData.propertyAge);
-    }
-
-    if (updatedData.propertyFloor === null || isNaN(Number(updatedData.propertyFloor))) {
-      delete updatedData.propertyFloor;
-    } else {
-      updatedData.propertyFloor = Number(updatedData.propertyFloor);
-    }
-
-    if (updatedData.propertyTotalFloor === null || isNaN(Number(updatedData.propertyTotalFloor))) {
-      delete updatedData.propertyTotalFloor;
-    } else {
-      updatedData.propertyTotalFloor = Number(updatedData.propertyTotalFloor);
-    }
-
-    const uploadedImages = req.files.map((file) => ({
-      filename: file.filename,
-      id: file.id,
-    }));
-
-    const images =
-      uploadedImages.length > 0
-        ? [...existingProperty.images, ...uploadedImages]
-        : existingProperty.images;
-
-    updatedData.images = images;
-
-    const updatedProperty = await Property.findByIdAndUpdate(req.params.id, updatedData, {
-      new: true,
-    });
-
-    res.json(updatedProperty);
-  } catch (err) {
-    console.error('Error updating property:', err);
-    res.status(400).send({ error: 'Failed to update property' });
-  }
-});
-
-// Delete a property
-router.delete('/:id', async (req, res) => {
-  try {
-    const property = await Property.findById(req.params.id);
-    if (!property) {
-      return res.status(404).send({ error: 'Property not found' });
-    }
-
-    if (property.images) {
-      for (const image of property.images) {
-        await gfs.delete(new mongoose.Types.ObjectId(image.id));
-      }
-    }
-
-    await Property.findByIdAndDelete(req.params.id);
-    res.status(204).send();
-  } catch (err) {
-    console.error('Error deleting property:', err);
-    res.status(500).send({ error: 'Failed to delete property' });
-  }
-});
-
 // Serve images from MongoDB GridFS
 router.get('/images/:filename', (req, res) => {
+  const gfs = req.gfs; // Access `gfs` from the request object
   const filename = req.params.filename;
 
   gfs.find({ filename }).toArray((err, files) => {
@@ -199,5 +71,57 @@ router.get('/images/:filename', (req, res) => {
     }
   });
 });
+
+// Upload a new property with image
+router.post('/', upload.single('image'), validateProperty, async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { title, description, price } = req.body;
+    const property = new Property({
+      title,
+      description,
+      price,
+      image: req.file.filename,
+    });
+
+    await property.save();
+    res.status(201).json(property);
+  } catch (err) {
+    console.error('Error creating property:', err);
+    res.status(500).send({ error: 'Failed to create property' });
+  }
+});
+
+// Delete a property
+router.delete('/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const property = await Property.findByIdAndDelete(id);
+
+    if (!property) {
+      return res.status(404).send({ message: 'Property not found' });
+    }
+
+    const gfs = req.gfs; // Access `gfs` from the request object
+    gfs.delete(property.image, (err) => {
+      if (err) {
+        console.error('Error deleting image from GridFS:', err);
+        return res.status(500).send({ error: 'Failed to delete image' });
+      }
+    });
+
+    res.status(200).send({ message: 'Property deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting property:', err);
+    res.status(500).send({ error: 'Failed to delete property' });
+  }
+});
+
+
 
 module.exports = router;

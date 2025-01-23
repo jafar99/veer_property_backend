@@ -24,10 +24,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // CORS configuration
-const allowedOrigins = [
-  'https://veer-property-frontend.vercel.app',
-  'http://localhost:3000',
-];
+const allowedOrigins = ['https://veer-property-frontend.vercel.app', 'http://localhost:3000'];
 const corsOptions = {
   origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -44,8 +41,11 @@ conn.once('open', () => {
   console.log('GridFS initialized');
 });
 
-// Property routes
-app.use('/api/properties', propertyRoutes);
+// Pass `gfs` to routes dynamically
+app.use('/api/properties', (req, res, next) => {
+  req.gfs = gfs; // Attach `gfs` to the request object
+  next();
+}, propertyRoutes);
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
@@ -84,6 +84,3 @@ process.on('SIGINT', async () => {
   conn.close();
   process.exit(0);
 });
-
-// Export gfs for reuse in other modules
-module.exports = { gfs };
