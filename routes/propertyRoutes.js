@@ -6,11 +6,21 @@ const crypto = require('crypto');
 const path = require('path');
 const { GridFsStorage } = require('multer-gridfs-storage');
 const { body, validationResult } = require('express-validator');
+const gridfsStream = require('gridfs-stream'); // Ensure gridfs-stream is available
 
 const router = express.Router();
 
 // Configure GridFS storage for multer
 const mongoURI = process.env.MONGO_URI;
+const conn = mongoose.createConnection(mongoURI, { useUnifiedTopology: true, useNewUrlParser: true });
+
+let gfs;
+conn.once('open', () => {
+  gfs = gridfsStream(conn.db, mongoose.mongo);
+  gfs.collection('uploads'); // Define the GridFS bucket name
+});
+
+// Configure multer storage for image uploads
 const storage = new GridFsStorage({
   url: mongoURI,
   options: { useUnifiedTopology: true },
@@ -52,19 +62,21 @@ router.get('/', async (req, res) => {
 });
 
 // Serve images from MongoDB GridFS
-// Serve images from MongoDB GridFS
 router.get('/images/:filename', (req, res) => {
-  const gfs = req.gfs; // Access `gfs` from the request object
   const filename = req.params.filename;
 
-  gfs.find({ filename }).toArray((err, files) => {
-    if (err || !files || files.length === 0) {
+  // Check if gfs is initialized properly
+  if (!gfs) {
+    return res.status(500).send({ message: 'GridFS not initialized' });
+  }
+
+  gfs.files.findOne({ filename }, (err, file) => {
+    if (err || !file) {
       return res.status(404).send({ message: 'Image not found' });
     }
 
-    const file = files[0];
     if (file.contentType && file.contentType.startsWith('image/')) {
-      const readstream = gfs.openDownloadStreamByName(filename);
+      const readstream = gfs.createReadStream({ filename: file.filename });
       res.set('Content-Type', file.contentType);
       res.set('Access-Control-Allow-Origin', '*'); // Allow any origin to access the image
       readstream.pipe(res);
@@ -73,7 +85,6 @@ router.get('/images/:filename', (req, res) => {
     }
   });
 });
-
 
 // Upload a new property with image(s)
 router.post('/', upload.array('images', 5), validateProperty, async (req, res) => {
@@ -124,12 +135,14 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).send({ message: 'Property not found' });
     }
 
-    const gfs = req.gfs; // Access `gfs` from the request object
-    await Promise.all(
-      property.images.map(async (image) => {
-        await gfs.delete(image.id); // Delete image from GridFS using ObjectId
-      })
-    );
+    // Delete images from GridFS
+    if (gfs) {
+      await Promise.all(
+        property.images.map(async (image) => {
+          await gfs.files.deleteOne({ _id: image.id }); // Delete image from GridFS using ObjectId
+        })
+      );
+    }
 
     res.status(200).send({ message: 'Property and its images deleted successfully' });
   } catch (err) {
