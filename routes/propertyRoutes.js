@@ -21,7 +21,7 @@ const storage = new GridFsStorage({
         const filename = buffer.toString('hex') + path.extname(file.originalname);
         const fileInfo = {
           filename,
-          bucketName: 'uploads',
+          bucketName: 'uploads', // Define the GridFS bucket name
         };
         resolve(fileInfo);
       });
@@ -72,20 +72,34 @@ router.get('/images/:filename', (req, res) => {
   });
 });
 
-// Upload a new property with image
-router.post('/', upload.single('image'), validateProperty, async (req, res) => {
+// Upload a new property with image(s)
+router.post('/', upload.array('images', 5), validateProperty, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
 
   try {
-    const { title, description, price } = req.body;
+    const { title, description, price, amenities, location, ...otherProps } = req.body;
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: 'Images are required' });
+    }
+
+    // Prepare the images array from the uploaded files
+    const imagesData = req.files.map((file) => ({
+      filename: file.filename,
+      id: file.id, // Store the GridFS file's ObjectId here
+    }));
+
     const property = new Property({
       title,
       description,
       price,
-      image: req.file.filename,
+      amenities,
+      location,
+      images: imagesData, // Store the image information in the property
+      ...otherProps,
     });
 
     await property.save();
@@ -96,7 +110,7 @@ router.post('/', upload.single('image'), validateProperty, async (req, res) => {
   }
 });
 
-// Delete a property
+// Delete a property and its associated images from GridFS
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
 
@@ -108,20 +122,17 @@ router.delete('/:id', async (req, res) => {
     }
 
     const gfs = req.gfs; // Access `gfs` from the request object
-    gfs.delete(property.image, (err) => {
-      if (err) {
-        console.error('Error deleting image from GridFS:', err);
-        return res.status(500).send({ error: 'Failed to delete image' });
-      }
-    });
+    await Promise.all(
+      property.images.map(async (image) => {
+        await gfs.delete(image.id); // Delete image from GridFS using ObjectId
+      })
+    );
 
-    res.status(200).send({ message: 'Property deleted successfully' });
+    res.status(200).send({ message: 'Property and its images deleted successfully' });
   } catch (err) {
     console.error('Error deleting property:', err);
     res.status(500).send({ error: 'Failed to delete property' });
   }
 });
-
-
 
 module.exports = router;

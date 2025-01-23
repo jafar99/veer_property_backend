@@ -2,7 +2,6 @@ const express = require('express');
 const mongoose = require('mongoose');
 const propertyRoutes = require('./routes/propertyRoutes');
 const cors = require('cors');
-const path = require('path');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
 const helmet = require('helmet');
@@ -41,11 +40,14 @@ conn.once('open', () => {
   console.log('GridFS initialized');
 });
 
-// Pass `gfs` to routes dynamically
-app.use('/api/properties', (req, res, next) => {
-  req.gfs = gfs; // Attach `gfs` to the request object
+// Make `gfs` available for route handlers
+app.use((req, res, next) => {
+  req.gfs = gfs; // Attach `gfs` to request object
   next();
-}, propertyRoutes);
+});
+
+// Property routes
+app.use('/api/properties', propertyRoutes);
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
