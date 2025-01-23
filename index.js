@@ -24,8 +24,9 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // CORS configuration
-const allowedOrigins = ['https://veer-property-frontend.vercel.app'
-  , 'http://localhost:3000'
+const allowedOrigins = [
+  'https://veer-property-frontend.vercel.app',
+  'http://localhost:3000',
 ];
 const corsOptions = {
   origin: allowedOrigins,
@@ -83,3 +84,6 @@ process.on('SIGINT', async () => {
   conn.close();
   process.exit(0);
 });
+
+// Export gfs for reuse in other modules
+module.exports = { gfs };

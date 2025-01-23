@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const Property = require('../models/Property');
 const crypto = require('crypto');
 const path = require('path');
+const { gfs } = require('../index');
 const { GridFsStorage } = require('multer-gridfs-storage');
 const { body, validationResult } = require('express-validator');
 
@@ -15,7 +16,7 @@ const conn = mongoose.createConnection(mongoURI);
 
 let gfs;
 conn.once('open', () => {
-  gfs = new mongoose.mongo.GridFSBucket(conn.db, { bucketName: 'uploads' });
+  gfs = new mongoose.mongo.GridFSBucket(conn.db, { bucketName: 'uploads' }); // Using 'uploads' bucket
 });
 
 // Configure GridFS storage for multer
@@ -29,7 +30,7 @@ const storage = new GridFsStorage({
         const filename = buffer.toString('hex') + path.extname(file.originalname);
         const fileInfo = {
           filename,
-          bucketName: 'uploads',
+          bucketName: 'uploads', // Specify bucket name
         };
         resolve(fileInfo);
       });
@@ -41,7 +42,6 @@ const upload = multer({ storage });
 // Middleware for validating input
 const validateProperty = [
   body('title').notEmpty().withMessage('Title is required'),
-
 ];
 
 // Get all properties with pagination
@@ -145,9 +145,6 @@ router.put('/:id', upload.array('images', 10), validateProperty, async (req, res
     }
 
     // Update images
-     
-    
-
     const uploadedImages = req.files.map((file) => ({
       filename: file.filename,
       id: file.id,
@@ -170,7 +167,6 @@ router.put('/:id', upload.array('images', 10), validateProperty, async (req, res
     res.status(400).send({ error: 'Failed to update property' });
   }
 });
-
 
 // Delete a property
 router.delete('/:id', async (req, res) => {
@@ -198,11 +194,15 @@ router.delete('/:id', async (req, res) => {
 router.get('/images/:filename', (req, res) => {
   const filename = req.params.filename;
 
-  gfs.files.findOne({ filename }, (err, file) => {
-    if (err || !file) return res.status(404).send({ message: 'Image not found' });
+  gfs.find({ filename }).toArray((err, files) => {
+    if (err || !files || files.length === 0) {
+      return res.status(404).send({ message: 'Image not found' });
+    }
+
+    const file = files[0]; // Get the first file (filenames should be unique)
 
     if (file.contentType && file.contentType.startsWith('image/')) {
-      const readstream = gfs.createReadStream(file.filename);
+      const readstream = gfs.openDownloadStreamByName(file.filename);
       res.set('Content-Type', file.contentType);
       readstream.pipe(res);
     } else {
