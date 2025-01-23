@@ -40,10 +40,25 @@ conn.once('open', () => {
   console.log('GridFS initialized');
 });
 
-// Make `gfs` available for route handlers
-app.use((req, res, next) => {
-  req.gfs = gfs; // Attach `gfs` to request object
-  next();
+// Serve images from MongoDB GridFS
+app.get('/images/:filename', (req, res) => {
+  const filename = req.params.filename;
+
+  gfs.find({ filename }).toArray((err, files) => {
+    if (err || !files || files.length === 0) {
+      return res.status(404).send({ message: 'Image not found' });
+    }
+
+    const file = files[0];
+    if (file.contentType && file.contentType.startsWith('image/')) {
+      const readstream = gfs.openDownloadStreamByName(filename);
+      res.set('Content-Type', file.contentType);
+      res.set('Access-Control-Allow-Origin', '*'); // Allow any origin to access the image
+      readstream.pipe(res);
+    } else {
+      res.status(404).send({ message: 'Not an image file' });
+    }
+  });
 });
 
 // Property routes

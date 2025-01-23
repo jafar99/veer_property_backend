@@ -52,7 +52,8 @@ router.get('/', async (req, res) => {
 });
 
 // Serve images from MongoDB GridFS
-router.get('/images/:filename', (req, res) => {
+// Serve images from MongoDB GridFS
+app.get('/images/:filename', (req, res) => {
   const gfs = req.gfs; // Access `gfs` from the request object
   const filename = req.params.filename;
 
@@ -65,12 +66,14 @@ router.get('/images/:filename', (req, res) => {
     if (file.contentType && file.contentType.startsWith('image/')) {
       const readstream = gfs.openDownloadStreamByName(filename);
       res.set('Content-Type', file.contentType);
+      res.set('Access-Control-Allow-Origin', '*'); // Allow any origin to access the image
       readstream.pipe(res);
     } else {
       res.status(404).send({ message: 'Not an image file' });
     }
   });
 });
+
 
 // Upload a new property with image(s)
 router.post('/', upload.array('images', 5), validateProperty, async (req, res) => {
