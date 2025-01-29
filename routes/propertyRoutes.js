@@ -153,4 +153,27 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+
+
+ // create get wit id
+
+router.get('/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const property = await Property.findById(id).lean();
+
+    if (!property) {
+      return res.status(404).send({ message: 'Property not found' });
+    }
+
+    res.json(property);
+  } catch (err) {
+    console.error('Error fetching property:', err);
+    res.status(500).send({ error: 'Failed to fetch property' });
+  }
+}
+);
+
+
 module.exports = router;
