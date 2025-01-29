@@ -1,3 +1,4 @@
+require('dotenv').config();  // Ensure to load environment variables
 const express = require('express');
 const multer = require('multer');
 const mongoose = require('mongoose');
@@ -6,24 +7,25 @@ const crypto = require('crypto');
 const path = require('path');
 const { GridFsStorage } = require('multer-gridfs-storage');
 const { body, validationResult } = require('express-validator');
-const gridfsStream = require('gridfs-stream'); // Ensure gridfs-stream is available
+const gridfsStream = require('gridfs-stream');
 
 const router = express.Router();
 
-// Configure GridFS storage for multer
+// Get the MongoDB URI from environment variable
 const mongoURI = process.env.MONGO_URI;
+
+// Create a connection to MongoDB using mongoose
 const conn = mongoose.createConnection(mongoURI, { useUnifiedTopology: true, useNewUrlParser: true });
 
 let gfs;
 conn.once('open', () => {
   gfs = gridfsStream(conn.db, mongoose.mongo);
-  gfs.collection('uploads'); // Define the GridFS bucket name
+  gfs.collection('uploads');  // Define the GridFS bucket name
 });
 
-// Configure multer storage for image uploads
+// Configure multer storage for image uploads using GridFsStorage
 const storage = new GridFsStorage({
-  url: mongoURI,
-  options: { useUnifiedTopology: true },
+  url: mongoURI,  // Use mongoURI here
   file: (req, file) =>
     new Promise((resolve, reject) => {
       crypto.randomBytes(16, (err, buffer) => {
@@ -31,7 +33,7 @@ const storage = new GridFsStorage({
         const filename = buffer.toString('hex') + path.extname(file.originalname);
         const fileInfo = {
           filename,
-          bucketName: 'uploads', // Define the GridFS bucket name
+          bucketName: 'uploads',  // Define the GridFS bucket name
         };
         resolve(fileInfo);
       });
