@@ -21,7 +21,8 @@ const storage = new CloudinaryStorage({
   cloudinary,
   params: {
     folder: 'property_images',
-    format: async (req, file) => 'jpg',
+    // support any format of images
+    format: async (req, file) => 'png', // 'jpeg', 'jpg', 'png'
     public_id: (req, file) => Date.now() + '-' + file.originalname,
   },
 });
@@ -84,63 +85,51 @@ router.post("/add", async (req, res) => {
 });
 
 
-// 🔹 Update property with new images (keeping old ones if none uploaded)
-// Backend: Change the route to match the frontend
-router.put("/:id", async (req, res) => {
+router.put("/:id", upload.array("images"), async (req, res) => {
   try {
-    const { images, ...otherData } = req.body;
+    console.log("Incoming update request:", req.body);
 
-    // Check if images is defined and is an array before using map
-    if (images && Array.isArray(images)) {
-      const formattedImages = images.map((img) =>
-        typeof img === "string" ? { url: img } : img
-      );
+    let { images, existingImages, ...otherData } = req.body;
 
-      // If the property has new images and you want to keep old ones:
-      const propertyToUpdate = await Property.findById(req.params.id);
-
-      if (!propertyToUpdate) {
-        return res.status(404).json({ error: "Property not found" });
-      }
-
-      // Merge existing images with new ones
-      const updatedImages = [
-        ...propertyToUpdate.images,
-        ...formattedImages.filter((img) => !propertyToUpdate.images.some((existingImg) => existingImg.url === img.url)),
-      ];
-
-      // Update the property with new data
-      const updatedProperty = await Property.findByIdAndUpdate(
-        req.params.id,
-        { ...otherData, images: updatedImages },
-        { new: true, runValidators: true }
-      );
-
-      res.status(200).json({
-        message: "Property updated successfully",
-        updatedProperty,
-      });
-    } else {
-      // If images is undefined or not an array, handle the case accordingly
-      console.log("No images provided or images is not an array");
-      const propertyToUpdate = await Property.findById(req.params.id);
-
-      if (!propertyToUpdate) {
-        return res.status(404).json({ error: "Property not found" });
-      }
-
-      // Update the property without updating images
-      const updatedProperty = await Property.findByIdAndUpdate(
-        req.params.id,
-        { ...otherData },
-        { new: true, runValidators: true }
-      );
-
-      res.status(200).json({
-        message: "Property updated successfully",
-        updatedProperty,
-      });
+    let formattedImages = [];
+    
+    if (req.files && req.files.length > 0) {
+      formattedImages = req.files.map((file) => ({
+        url: file.path, // Cloudinary URL
+      }));
     }
+
+    if (Array.isArray(existingImages)) {
+      formattedImages = [
+        ...formattedImages,
+        ...existingImages.map((imgUrl) => ({ url: imgUrl })),
+      ];
+    }
+
+    const propertyToUpdate = await Property.findById(req.params.id);
+    if (!propertyToUpdate) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+
+    const updatedImages = [
+      ...propertyToUpdate.images,
+      ...formattedImages.filter(
+        (img) =>
+          !propertyToUpdate.images.some(
+            (existingImg) => existingImg.url === img.url
+          )
+      ),
+    ];
+
+    Object.assign(propertyToUpdate, otherData);
+    propertyToUpdate.images = updatedImages;
+
+    const updatedProperty = await propertyToUpdate.save();
+
+    res.status(200).json({
+      message: "Property updated successfully",
+      updatedProperty,
+    });
   } catch (error) {
     console.error("Error updating property:", error);
     res.status(500).json({ error: error.message });
