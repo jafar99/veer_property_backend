@@ -15,10 +15,9 @@ if (!process.env.MONGO_URI || !process.env.PORT) {
 const app = express();
 
 // Middleware
-app.use(express.json()); // ✅ Ensures JSON parsing before handling routes
+app.use(express.json());
 app.use(helmet());
 
-// Logging for development
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
@@ -39,8 +38,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Connect to MongoDB
-mongoose
-  .connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true , writeConcern: { w: 'majority' } })
   .then(() => console.log('✅ MongoDB connected successfully'))
   .catch((error) => {
     console.error('❌ MongoDB connection error:', error);
@@ -50,24 +48,5 @@ mongoose
 // Routes
 app.use('/api/properties', propertyRoutes);
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'Server is running', dbStatus: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' });
-});
-
-// Global Error Handling Middleware
-app.use((err, req, res, next) => {
-  console.error('❌ Error:', err.message);
-  res.status(err.status || 500).json({ success: false, error: err.message || 'Internal Server Error' });
-});
-
-// Start the server
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-
-// Graceful Shutdown
-process.on('SIGINT', async () => {
-  console.log('Shutting down gracefully...');
-  await mongoose.connection.close();
-  process.exit(0);
-});

@@ -1,53 +1,38 @@
-require('dotenv').config();  // Ensure to load environment variables
+require('dotenv').config();
 const express = require('express');
-const multer = require('multer');
 const mongoose = require('mongoose');
 const Property = require('../models/Property');
-const crypto = require('crypto');
-const path = require('path');
-const { GridFsStorage } = require('multer-gridfs-storage');
 const { body, validationResult } = require('express-validator');
-const gridfsStream = require('gridfs-stream');
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 const router = express.Router();
 
-// Get the MongoDB URI from environment variable
-const mongoURI = process.env.MONGO_URI;
-
-// Create a connection to MongoDB using mongoose
-const conn = mongoose.createConnection(mongoURI, { useUnifiedTopology: true, useNewUrlParser: true });
-
-let gfs;
-conn.once('open', () => {
-  gfs = gridfsStream(conn.db, mongoose.mongo);
-  gfs.collection('uploads');  // Define the GridFS bucket name
+// ✅ Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Configure multer storage for image uploads using GridFsStorage
-const storage = new GridFsStorage({
-  url: mongoURI,  // Use mongoURI here
-  file: (req, file) =>
-    new Promise((resolve, reject) => {
-      crypto.randomBytes(16, (err, buffer) => {
-        if (err) return reject(err);
-        const filename = buffer.toString('hex') + path.extname(file.originalname);
-        const fileInfo = {
-          filename,
-          bucketName: 'uploads',  // Define the GridFS bucket name
-        };
-        resolve(fileInfo);
-      });
-    }),
+// ✅ Set up Cloudinary Storage for Multer
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'property_images',
+    format: async (req, file) => 'jpg',
+    public_id: (req, file) => Date.now() + '-' + file.originalname,
+  },
 });
-
 const upload = multer({ storage });
 
-// Middleware for validating input
+// ✅ Middleware for validation
 const validateProperty = [
   body('title').notEmpty().withMessage('Title is required'),
 ];
 
-// Get all properties with pagination
+// 🔹 Get all properties with pagination
 router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
@@ -63,85 +48,124 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Serve images from MongoDB GridFS
-router.get('/images/:filename', (req, res) => {
-  const filename = req.params.filename;
-
-  // Check if gfs is initialized properly
-  if (!gfs) {
-    return res.status(500).send({ message: 'GridFS not initialized' });
+// 🔹 Get a property by ID
+router.get('/:id', async (req, res) => {
+  try {
+    const property = await Property.findById(req.params.id).lean();
+    if (!property) return res.status(404).send({ message: 'Property not found' });
+    res.json(property);
+  } catch (err) {
+    console.error('Error fetching property:', err);
+    res.status(500).send({ error: 'Failed to fetch property' });
   }
-
-  gfs.files.findOne({ filename }, (err, file) => {
-    if (err || !file) {
-      return res.status(404).send({ message: 'Image not found' });
-    }
-
-    if (file.contentType && file.contentType.startsWith('image/')) {
-      const readstream = gfs.createReadStream({ filename: file.filename });
-      res.set('Content-Type', file.contentType);
-      res.set('Access-Control-Allow-Origin', '*'); // Allow any origin to access the image
-      readstream.pipe(res);
-    } else {
-      res.status(404).send({ message: 'Not an image file' });
-    }
-  });
 });
 
-// Upload a new property with image(s)
-router.post('/', upload.array('images', 5), validateProperty, async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
+// 🔹 Upload a new property with Cloudinary images
+router.post("/add", async (req, res) => {
   try {
-    const { title, description, price, amenities, location, ...otherProps } = req.body;
+    const { images, ...otherData } = req.body;
 
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ message: 'Images are required' });
-    }
+    // Ensure images are an array of objects
+    const formattedImages = images.map((img) =>
+      typeof img === "string" ? { url: img } : img
+    );
 
-    // Prepare the images array from the uploaded files
-    const imagesData = req.files.map((file) => ({
-      filename: file.filename,
-      id: file.id, // Store the GridFS file's ObjectId here
-    }));
-
-    const property = new Property({
-      title,
-      description,
-      price,
-      amenities,
-      location,
-      images: imagesData, // Store the image information in the property
-      ...otherProps,
+    const newProperty = new Property({
+      ...otherData,
+      images: formattedImages,
     });
 
-    await property.save();
-    res.status(201).json(property);
-  } catch (err) {
-    console.error('Error creating property:', err);
-    res.status(500).send({ error: 'Failed to create property' });
+    await newProperty.save();
+    res.status(201).json({ message: "Property added successfully" });
+  } catch (error) {
+    console.error("Error adding property:", error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Delete a property and its associated images from GridFS
-router.delete('/:id', async (req, res) => {
-  const { id } = req.params;
 
+// 🔹 Update property with new images (keeping old ones if none uploaded)
+// Backend: Change the route to match the frontend
+router.put("/:id", async (req, res) => {
   try {
-    const property = await Property.findByIdAndDelete(id);
+    const { images, ...otherData } = req.body;
 
-    if (!property) {
-      return res.status(404).send({ message: 'Property not found' });
+    // Check if images is defined and is an array before using map
+    if (images && Array.isArray(images)) {
+      const formattedImages = images.map((img) =>
+        typeof img === "string" ? { url: img } : img
+      );
+
+      // If the property has new images and you want to keep old ones:
+      const propertyToUpdate = await Property.findById(req.params.id);
+
+      if (!propertyToUpdate) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+
+      // Merge existing images with new ones
+      const updatedImages = [
+        ...propertyToUpdate.images,
+        ...formattedImages.filter((img) => !propertyToUpdate.images.some((existingImg) => existingImg.url === img.url)),
+      ];
+
+      // Update the property with new data
+      const updatedProperty = await Property.findByIdAndUpdate(
+        req.params.id,
+        { ...otherData, images: updatedImages },
+        { new: true, runValidators: true }
+      );
+
+      res.status(200).json({
+        message: "Property updated successfully",
+        updatedProperty,
+      });
+    } else {
+      // If images is undefined or not an array, handle the case accordingly
+      console.log("No images provided or images is not an array");
+      const propertyToUpdate = await Property.findById(req.params.id);
+
+      if (!propertyToUpdate) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+
+      // Update the property without updating images
+      const updatedProperty = await Property.findByIdAndUpdate(
+        req.params.id,
+        { ...otherData },
+        { new: true, runValidators: true }
+      );
+
+      res.status(200).json({
+        message: "Property updated successfully",
+        updatedProperty,
+      });
     }
+  } catch (error) {
+    console.error("Error updating property:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
-    // Delete images from GridFS
-    if (gfs) {
+
+
+
+
+
+
+
+// 🔹 Delete a property and its associated images from Cloudinary
+router.delete('/:id', async (req, res) => {
+  try {
+    const property = await Property.findByIdAndDelete(req.params.id);
+    if (!property) return res.status(404).send({ message: 'Property not found' });
+
+    // ✅ Delete images from Cloudinary
+    if (property.images && property.images.length > 0) {
       await Promise.all(
         property.images.map(async (image) => {
-          await gfs.files.deleteOne({ _id: image.id }); // Delete image from GridFS using ObjectId
+          const publicId = image.url.split('/').pop().split('.')[0];
+          await cloudinary.uploader.destroy(`property_images/${publicId}`);
         })
       );
     }
@@ -152,28 +176,5 @@ router.delete('/:id', async (req, res) => {
     res.status(500).send({ error: 'Failed to delete property' });
   }
 });
-
-
-
- // create get wit id
-
-router.get('/:id', async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const property = await Property.findById(id).lean();
-
-    if (!property) {
-      return res.status(404).send({ message: 'Property not found' });
-    }
-
-    res.json(property);
-  } catch (err) {
-    console.error('Error fetching property:', err);
-    res.status(500).send({ error: 'Failed to fetch property' });
-  }
-}
-);
-
 
 module.exports = router;
