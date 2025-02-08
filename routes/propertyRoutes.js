@@ -95,24 +95,35 @@ router.post("/add", upload.array("images", 10), async (req, res) => {
 
 
 
-router.put("/:id", upload.array("images"), async (req, res) => {
+router.put("/:id", upload.array("images", 10), async (req, res) => {
   try {
     console.log("Incoming update request:", req.body);
 
-    let { images, existingImages, ...otherData } = req.body;
+    let { amenities, features, imageUrls, existingImages, ...otherData } = req.body;
 
-    let formattedImages = [];
-    
-    if (req.files && req.files.length > 0) {
-      formattedImages = req.files.map((file) => ({
-        url: file.path, // Cloudinary URL
-      }));
-    }
+    // Ensure amenities & features are arrays
+    const formattedAmenities = amenities ? amenities.split(",") : [];
+    const formattedFeatures = features ? features.split(",") : [];
 
-    if (Array.isArray(existingImages)) {
+    // Process newly uploaded images
+    let formattedImages = req.files.map((file) => ({ url: file.path }));
+
+    // Process existing images (handle as an array)
+    if (existingImages) {
+      if (typeof existingImages === "string") {
+        existingImages = [existingImages]; // Convert single string to array
+      }
       formattedImages = [
         ...formattedImages,
         ...existingImages.map((imgUrl) => ({ url: imgUrl })),
+      ];
+    }
+
+    // Process imageUrls if provided as a comma-separated string
+    if (imageUrls) {
+      formattedImages = [
+        ...formattedImages,
+        ...imageUrls.split(",").map((url) => ({ url })),
       ];
     }
 
@@ -121,6 +132,7 @@ router.put("/:id", upload.array("images"), async (req, res) => {
       return res.status(404).json({ error: "Property not found" });
     }
 
+    // Ensure images are unique (avoid duplicates)
     const updatedImages = [
       ...propertyToUpdate.images,
       ...formattedImages.filter(
@@ -131,7 +143,10 @@ router.put("/:id", upload.array("images"), async (req, res) => {
       ),
     ];
 
+    // Update the property
     Object.assign(propertyToUpdate, otherData);
+    propertyToUpdate.amenities = formattedAmenities;
+    propertyToUpdate.features = formattedFeatures;
     propertyToUpdate.images = updatedImages;
 
     const updatedProperty = await propertyToUpdate.save();
@@ -145,6 +160,7 @@ router.put("/:id", upload.array("images"), async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 
 
