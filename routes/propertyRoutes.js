@@ -62,27 +62,37 @@ router.get('/:id', async (req, res) => {
 });
 
 // 🔹 Upload a new property with Cloudinary images
-router.post("/add", async (req, res) => {
+router.post("/add", upload.array("images", 10), async (req, res) => {
   try {
-    const { images, ...otherData } = req.body;
+    const { amenities, features, imageUrls, ...otherData } = req.body;
 
-    // Ensure images are an array of objects
-    const formattedImages = images.map((img) =>
-      typeof img === "string" ? { url: img } : img
-    );
+    const formattedAmenities = amenities ? amenities.split(",") : [];
+    const formattedFeatures = features ? features.split(",") : [];
+
+    // Get uploaded image URLs from Multer (or Cloudinary)
+    const uploadedImages = req.files.map((file) => ({ url: file.path }));
+
+    // Extract existing image URLs
+    const parsedImageUrls = imageUrls ? imageUrls.split(",").map((url) => ({ url })) : [];
+
+    // Combine both uploaded and existing images
+    const formattedImages = [...uploadedImages, ...parsedImageUrls];
 
     const newProperty = new Property({
       ...otherData,
+      amenities: formattedAmenities,
+      features: formattedFeatures,
       images: formattedImages,
     });
 
     await newProperty.save();
-    res.status(201).json({ message: "Property added successfully" });
+    res.status(201).json({ message: "Property added successfully", property: newProperty });
   } catch (error) {
     console.error("Error adding property:", error);
     res.status(500).json({ error: error.message });
   }
 });
+
 
 
 router.put("/:id", upload.array("images"), async (req, res) => {
