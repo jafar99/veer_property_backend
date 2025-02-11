@@ -69,13 +69,18 @@ router.post("/add", upload.array("images", 10), async (req, res) => {
     const formattedAmenities = amenities ? amenities.split(",") : [];
     const formattedFeatures = features ? features.split(",") : [];
 
-    // Get uploaded image URLs from Multer (or Cloudinary)
+    // 🛠 Ensure imageUrls is an array before processing
+    let parsedImageUrls = [];
+    if (typeof imageUrls === "string") {
+      parsedImageUrls = imageUrls.split(",").map((url) => ({ url }));
+    } else if (Array.isArray(imageUrls)) {
+      parsedImageUrls = imageUrls.map((url) => ({ url }));
+    }
+
+    // ✅ Get uploaded images from Multer (Cloudinary URLs)
     const uploadedImages = req.files.map((file) => ({ url: file.path }));
 
-    // Extract existing image URLs
-    const parsedImageUrls = imageUrls ? imageUrls.split(",").map((url) => ({ url })) : [];
-
-    // Combine both uploaded and existing images
+    // 🔹 Combine both uploaded and existing images
     const formattedImages = [...uploadedImages, ...parsedImageUrls];
 
     const newProperty = new Property({
@@ -92,6 +97,7 @@ router.post("/add", upload.array("images", 10), async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 
 
