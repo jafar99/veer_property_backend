@@ -105,7 +105,7 @@ router.put("/:id", upload.array("images", 10), async (req, res) => {
   try {
     console.log("Incoming update request:", req.body);
 
-    let { amenities, features, imageUrls, existingImages, ...otherData } = req.body;
+    let { amenities, features, imageUrls, existingImages, deletedImages, ...otherData } = req.body;
 
     // Ensure amenities & features are arrays
     const formattedAmenities = amenities ? amenities.split(",") : [];
@@ -129,13 +129,41 @@ router.put("/:id", upload.array("images", 10), async (req, res) => {
     if (imageUrls) {
       formattedImages = [
         ...formattedImages,
-        ...imageUrls.split(",").map((url) => ({ url })),
+        ...imageUrls.split(",").map((url) => ({ url })), 
       ];
     }
 
     const propertyToUpdate = await Property.findById(req.params.id);
     if (!propertyToUpdate) {
       return res.status(404).json({ error: "Property not found" });
+    }
+
+    // **Handle Image Deletion from Cloudinary**
+    if (deletedImages) {
+      if (typeof deletedImages === "string") {
+        deletedImages = [deletedImages]; // Convert single string to array
+      }
+
+      await Promise.all(
+        deletedImages.map(async (imageUrl) => {
+          try {
+            // Extract public_id from Cloudinary URL
+            const publicId = imageUrl
+              .split("/")
+              .pop()
+              .split(".")[0]; // Extract last part before extension
+
+            await cloudinary.uploader.destroy(`property_images/${publicId}`);
+          } catch (err) {
+            console.error("Error deleting image from Cloudinary:", err);
+          }
+        })
+      );
+
+      // Remove deleted images from property images array
+      propertyToUpdate.images = propertyToUpdate.images.filter(
+        (img) => !deletedImages.includes(img.url)
+      );
     }
 
     // Ensure images are unique (avoid duplicates)
@@ -166,6 +194,7 @@ router.put("/:id", upload.array("images", 10), async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 
 
