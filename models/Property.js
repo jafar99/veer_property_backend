@@ -4,6 +4,7 @@ const PropertySchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: String,
   type: String,
+  subtype: String,
   status: String,
   availableFor: String,
   price: String,
