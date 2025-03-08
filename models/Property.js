@@ -16,6 +16,7 @@ const PropertySchema = new mongoose.Schema({
   googleMapLink: String,
   availableFrom: String,
   propertyInfo: String,
+  nearbyplaces: String,
   propertyAge: String,
   propertyFacing: String,
   propertyFloor: String,
