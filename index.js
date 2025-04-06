@@ -23,7 +23,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // CORS configuration
-const allowedOrigins = ['https://veer-property-frontend.vercel.app', 'http://localhost:3000'];
+const allowedOrigins = ['https://veer-property-frontend.vercel.app', 'http://localhost:3000' , "https://veer-properties.vercel.app/"];
 const corsOptions = {
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) {
