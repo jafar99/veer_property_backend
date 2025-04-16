@@ -71,10 +71,7 @@ router.post("/add", upload.array("images", 10), async (req, res) => {
     console.log("Received request body:", req.body);
     console.log("Received files:", req.files);
 
-    const { amenities, features, imageUrls, ...otherData } = req.body;
-
-    const formattedAmenities = amenities ? amenities.split(",") : [];
-    const formattedFeatures = features ? features.split(",") : [];
+    const { amenities, features, imageUrls, propertyInfo, ...otherData } = req.body;
 
     // Store both URL and public_id from Cloudinary response
     const uploadedImages = req.files ? req.files.map((file) => {
@@ -102,8 +99,9 @@ router.post("/add", upload.array("images", 10), async (req, res) => {
     // Create property object with all fields
     const propertyData = {
       ...otherData,
-      amenities: formattedAmenities,
-      features: formattedFeatures,
+      amenities: amenities || "",
+      features: features || "",
+      propertyInfo: propertyInfo || "",
       images: formattedImages,
     };
 
@@ -141,10 +139,7 @@ router.post("/add", upload.array("images", 10), async (req, res) => {
 
 router.put("/:id", upload.array("images", 10), async (req, res) => {
   try {
-    const { amenities, features, imageUrls, existingImages, deletedImages, ...otherData } = req.body;
-
-    const formattedAmenities = amenities ? amenities.split(",") : [];
-    const formattedFeatures = features ? features.split(",") : [];
+    const { amenities, features, imageUrls, existingImages, deletedImages, propertyInfo, ...otherData } = req.body;
 
     // ✅ Include `public_id` when storing newly uploaded images
     let formattedImages = req.files.map((file) => ({
@@ -202,8 +197,9 @@ router.put("/:id", upload.array("images", 10), async (req, res) => {
     ];
 
     Object.assign(propertyToUpdate, otherData);
-    propertyToUpdate.amenities = formattedAmenities;
-    propertyToUpdate.features = formattedFeatures;
+    propertyToUpdate.amenities = amenities || "";
+    propertyToUpdate.features = features || "";
+    propertyToUpdate.propertyInfo = propertyInfo || "";
     propertyToUpdate.images = updatedImages;
 
     const updatedProperty = await propertyToUpdate.save();
