@@ -24,7 +24,10 @@ const PropertySchema = new mongoose.Schema({
   agreement: String,
   amenities: [String],
   features: [String],
-  images: [{ url: String }], // Ensure images are stored as objects with a "url" key
+  images: [{
+    url: { type: String, required: true },
+    public_id: { type: String, required: true }
+  }],
 });
 
 module.exports = mongoose.model("Property", PropertySchema);
