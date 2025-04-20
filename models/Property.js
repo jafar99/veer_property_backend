@@ -22,6 +22,7 @@ const PropertySchema = new mongoose.Schema({
   propertyFloor: String,
   propertyTotalFloor: String,
   agreement: String,
+  rera: String,
   amenities: String,
   features: String,
   images: [{
