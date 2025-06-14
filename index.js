@@ -26,7 +26,8 @@ if (process.env.NODE_ENV === 'development') {
 // CORS configuration
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://veer-properties.vercel.app'
+  'https://veer-properties.vercel.app',
+  "https://www.veerproperties.in/"
 ];
 
 const corsOptions = {
