@@ -27,7 +27,8 @@ if (process.env.NODE_ENV === 'development') {
 const allowedOrigins = [
   'http://localhost:3000',
   'https://veer-properties.vercel.app',
-  "https://www.veerproperties.in/"
+  'https://www.veerproperties.in',
+  'https://veerproperties.in'
 ];
 
 const corsOptions = {
@@ -35,10 +36,15 @@ const corsOptions = {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
+    console.log('CORS check - Requested origin:', origin);
+    console.log('CORS check - Allowed origins:', allowedOrigins);
+    
     if (allowedOrigins.indexOf(origin) === -1) {
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      console.log('CORS rejected origin:', origin);
       return callback(new Error(msg), false);
     }
+    console.log('CORS allowed origin:', origin);
     return callback(null, true);
   },
   credentials: true,
