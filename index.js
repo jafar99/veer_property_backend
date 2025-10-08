@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const propertyRoutes = require('./routes/propertyRoutes');
 const offerRoutes = require('./routes/offerRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
@@ -67,6 +68,7 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
 // Routes   
 app.use('/api/properties', propertyRoutes);
 app.use('/api/offers', offerRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
